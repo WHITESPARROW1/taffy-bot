@@ -6,11 +6,19 @@ TOKEN = os.environ.get("BOT_TOKEN")
 
 app = Flask(__name__)
 
+@app.route("/")
+def home():
+    return "Bot is running!"
+
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     data = request.json
-    message = data.get("message", {})
-    chat_id = message.get("chat", {}).get("id")
+
+    if "message" not in data:
+        return "ok"
+
+    message = data["message"]
+    chat_id = message["chat"]["id"]
 
     file_id = None
 
@@ -22,11 +30,16 @@ def webhook():
         file_id = message["audio"]["file_id"]
     elif "photo" in message:
         file_id = message["photo"][-1]["file_id"]
-
-    if not file_id:
+    else:
+        requests.post(
+            f"https://api.telegram.org/bot{TOKEN}/sendMessage",
+            json={
+                "chat_id": chat_id,
+                "text": "📤 Send me any file and I'll give you a download link."
+            }
+        )
         return "ok"
 
-    # Get file path from Telegram
     r = requests.get(
         f"https://api.telegram.org/bot{TOKEN}/getFile?file_id={file_id}"
     )
@@ -34,7 +47,6 @@ def webhook():
 
     download_link = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
 
-    # Send link back instantly
     requests.post(
         f"https://api.telegram.org/bot{TOKEN}/sendMessage",
         json={
